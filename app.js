@@ -103,7 +103,7 @@ function login(){
     <div class="brand-mark">I</div><div class="eyebrow">SECURE ASSESSMENT PORTAL</div>
     <h1>IARCO Assessment</h1><p class="muted">Authorized participants only. Sign in to continue.</p>
     <div class="form-group"><label for="email">Email address</label><input id="email" class="field" type="email" autocomplete="username" placeholder="you@example.com"></div>
-    <div class="form-group"><label for="password">Password</label><div class="password-wrap"><input id="password" class="field" type="password" autocomplete="current-password" placeholder="Enter your password"><button type="button" id="togglePassword" class="password-toggle" aria-label="Show password" title="Show password">Show</button></div></div>
+    <div class="form-group"><label for="password">Password</label><div class="password-wrap"><input id="password" class="field" type="password" autocomplete="current-password" placeholder="Enter your password"><button type="button" id="togglePassword" class="password-toggle" aria-label="Show password" title="Show password">👁</button></div></div>
     <button id="login" class="btn gold full">Sign in securely</button><div id="msg" class="form-message"></div>
   </section></main>`);
   protect();
