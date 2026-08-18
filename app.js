@@ -49,9 +49,11 @@ async function syncQueuedSubmissions(){
 }
 async function processCertificateAfterQueuedSubmit(r){
   const progress=showSubmissionProgress();await allowProgressPaint();
-  progress.set(2,'Preparing your certificate','Your result is saved. We are now generating your certificate PDF.');
+  progress.set(1,'Preparing Result','Your queued assessment result is being prepared.');await allowProgressPaint();
+  progress.set(2,'Save Result','Your saved result is being finalized.');await allowProgressPaint();
+  progress.set(3,'Preparing Certificate','Your result is saved. We are now preparing your certificate PDF.');await allowProgressPaint();
   const cert=await generateCertificatePdf(r.score,r.total_questions,r.percentile,r.time_taken,r.duration_minutes);
-  progress.set(3,'Preparing your certificate','Your certificate is being prepared. It will be sent automatically to your registered email address.');await allowProgressPaint();
+  progress.set(3,'Preparing Certificate','Your certificate is being prepared. It will be sent automatically to your registered email address.');await allowProgressPaint();
   const sent=await api('certificate_upload',{attempt_id:r.attempt_id,email:safeEmail(),certificate_pdf_base64:cert.base64});
   progress.set(4,'Submission complete','Your assessment has been fully processed.');progress.finish();await new Promise(r=>setTimeout(r,450));
   save({status:r.status||'COMPLETED',attempt_id:r.attempt_id,score:r.score,total_questions:r.total_questions,percentile:r.percentile,submitted_at:r.submitted_at,time_taken:r.time_taken,duration_minutes:r.duration_minutes,email_status:sent.email_status||'FAILED',certificate_file:sent.certificate_file||'',certificate_error:sent.email_error||''});
@@ -103,7 +105,7 @@ function login(){
     <div class="brand-mark">I</div><div class="eyebrow">SECURE ASSESSMENT PORTAL</div>
     <h1>IARCO Assessment</h1><p class="muted">Authorized participants only. Sign in to continue.</p>
     <div class="form-group"><label for="email">Email address</label><input id="email" class="field" type="email" autocomplete="username" placeholder="you@example.com"></div>
-    <div class="form-group"><label for="password">Password</label><div class="password-wrap"><input id="password" class="field" type="password" autocomplete="current-password" placeholder="Enter your password"><button type="button" id="togglePassword" class="password-toggle" aria-label="Show password" title="Show password">👁</button></div></div>
+    <div class="form-group"><label for="password">Password</label><div class="password-wrap"><input id="password" class="field" type="password" autocomplete="current-password" placeholder="Enter your password"><button type="button" id="togglePassword" class="password-toggle" aria-label="Show password" title="Show password">Show</button></div></div>
     <button id="login" class="btn gold full">Sign in securely</button><div id="msg" class="form-message"></div>
   </section></main>`);
   protect();
@@ -321,35 +323,85 @@ async function violate(reason,details=""){
 }
 async function getAsset(year,asset){const r=await fetch(`${CERT_API}?action=certificate_asset&year=${encodeURIComponent(year)}&asset=${encodeURIComponent(asset)}`);if(!r.ok)throw Error(`Certificate asset unavailable (${asset}, HTTP ${r.status})`);return await r.arrayBuffer()}
 
-function ensureQrContainer(){let q=document.getElementById("qrcode");if(!q){q=document.createElement("div");q.id="qrcode";q.setAttribute("aria-hidden","true");q.style.cssText="position:fixed;left:-10000px;top:-10000px;width:100px;height:100px;overflow:hidden;";document.body.appendChild(q)}return q}
-function qrDataUrl(text){return new Promise((resolve,reject)=>{const q=ensureQrContainer();q.innerHTML="";try{if(typeof QRCode!=="function")throw Error("QR code library did not load");new QRCode(q,{text,width:90,height:90,correctLevel:QRCode.CorrectLevel.L});setTimeout(()=>{const c=q.querySelector("canvas"),img=q.querySelector("img");if(c)return resolve(c.toDataURL("image/png"));if(img)return resolve(img.src);reject(Error("QR generation failed"))},300)}catch(e){reject(e)}})}
+function ensureQrContainer(){let q=document.getElementById("qrcode");if(!q){q=document.createElement("div");q.id="qrcode";q.setAttribute("aria-hidden","true");q.style.cssText="position:fixed;left:-10000px;top:-10000px;width:140px;height:140px;overflow:hidden;";document.body.appendChild(q)}return q}
+function qrDataUrl(text){return new Promise((resolve,reject)=>{const q=ensureQrContainer();q.innerHTML="";try{if(typeof QRCode!=="function")throw Error("QR code library did not load");new QRCode(q,{text,width:120,height:120,correctLevel:QRCode.CorrectLevel.L});setTimeout(()=>{const c=q.querySelector("canvas"),img=q.querySelector("img");if(c)return resolve(c.toDataURL("image/png"));if(img)return resolve(img.src);reject(Error("QR generation failed"))},300)}catch(e){reject(e)}})}
 function bytesToBase64(bytes){let binary="";const chunk=0x8000;for(let i=0;i<bytes.length;i+=chunk)binary+=String.fromCharCode(...bytes.subarray(i,Math.min(i+chunk,bytes.length)));return btoa(binary)}
+
+function formatCertificateDate(value){
+  const raw=String(value||'').trim();
+  if(!raw) return '';
+  const m=raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if(m){
+    const d=new Date(Number(m[1]),Number(m[2])-1,Number(m[3]));
+    if(!Number.isNaN(d.getTime())) return d.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
+  }
+  const d=new Date(raw);
+  return Number.isNaN(d.getTime())?raw:d.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
+}
+function drawCenteredFitted(page,text,font,{y,maxSize=18,minSize=10,color=undefined,maxWidth=700}={}){
+  const value=String(text||'').trim(); if(!value)return;
+  let size=maxSize;
+  while(size>minSize && font.widthOfTextAtSize(value,size)>maxWidth) size-=0.5;
+  const width=font.widthOfTextAtSize(value,size);
+  page.drawText(value,{x:(page.getWidth()-width)/2,y,size,font,...(color?{color}: {})});
+}
 
 async function generateCertificatePdf(score,total,percentile,timeTaken,duration){
   if(!window.PDFLib)throw Error("PDF library did not load. Check the CDN connection.");
   const year=String(user?.years||new Date().getFullYear());
+  // The certificate template is selected exclusively from the participant year.
   const info=await api("certificate_info",{year});
   if(!info?.url)throw Error(`No certificate template is configured for ${year}.`);
   const bytes=await getAsset(year,"template");
   const pdf=await PDFLib.PDFDocument.load(bytes);
   const page=pdf.getPages()[0];
   const studentId=String(user?.participant_id||user?.id||"");
-  const name=String(user?.name||"");const school=String(user?.school||user?.institution||"");const role=String(user?.role||user?.category||"");const date=String(user?.date||"");
+  const name=String(user?.name||"").trim();
+  const school=String(user?.school||user?.institution||"").trim();
+  const country=String(user?.country||"").trim();
+  const category=String(user?.category||user?.role||"").trim();
+  const participationYear=String(user?.years||year).trim();
+  const date=formatCertificateDate(user?.date||"");
+
   let GreatVibes=null,PtSans=null;
   if(window.fontkit){
-    try{pdf.registerFontkit(window.fontkit);const [font1,font2]=await Promise.all([getAsset(year,"greatvibes"),getAsset(year,"ptsans")]);GreatVibes=await pdf.embedFont(font1);PtSans=await pdf.embedFont(font2)}catch(e){console.warn("Custom fonts unavailable; using fallback fonts.",e)}
+    try{
+      pdf.registerFontkit(window.fontkit);
+      const [font1,font2]=await Promise.all([getAsset(year,"greatvibes"),getAsset(year,"ptsans")]);
+      GreatVibes=await pdf.embedFont(font1);PtSans=await pdf.embedFont(font2);
+    }catch(e){console.warn("Custom fonts unavailable; using fallback fonts.",e)}
   }
-  const normal=await pdf.embedFont(PDFLib.StandardFonts.Helvetica);const italic=await pdf.embedFont(PDFLib.StandardFonts.HelveticaOblique);
-  const nf=GreatVibes||italic,pf=PtSans||normal;
-  const fsN=GreatVibes?35:24,fsP=15;const textWidthN=nf.widthOfTextAtSize(name,fsN);page.drawText(name,{x:page.getWidth()/2-textWidthN/2,y:page.getHeight()/1.57,size:fsN,font:nf});
-  const textWidthS=pf.widthOfTextAtSize(school,fsP);page.drawText(school,{x:page.getWidth()/2-textWidthS/2,y:page.getHeight()/1.9,size:fsP,font:pf});
-  page.drawText(studentId,{x:700,y:500,size:9,font:normal});page.drawText(role+" Category",{x:490,y:283,size:14,font:normal});page.drawText(date,{x:530,y:260,size:14,font:normal});
-  // Keep the QR payload deliberately short. qrcodejs has a finite capacity and the
-  // previous certificate embedded too much student/result text, causing
-  // "code length overflow" for longer records. The certificate itself contains
-  // the complete result; the QR only needs the participant identifier.
-  const qr=await qrDataUrl(`IARCO|ID:${studentId}`);
-  const qrBytes=await fetch(qr).then(r=>r.arrayBuffer());const qrImg=await pdf.embedPng(qrBytes);page.drawImage(qrImg,{x:700,y:400,width:90,height:90});
+  const normal=await pdf.embedFont(PDFLib.StandardFonts.Helvetica);
+  const nf=GreatVibes||normal;
+  const pf=PtSans||normal;
+
+  // A4 landscape template coordinates. These are deliberately kept centered so
+  // longer names/institution names cannot drift into the surrounding artwork.
+  const nameSize=GreatVibes?35:24;
+  drawCenteredFitted(page,name,nf,{y:365,maxSize:nameSize,minSize:18,maxWidth:680});
+  drawCenteredFitted(page,school,pf,{y:319,maxSize:15,minSize:10,maxWidth:620});
+
+  // Result information is placed in the certificate's lower information area.
+  drawCenteredFitted(page,`Score ${Number(score)||0} out of ${Number(total)||0}`,pf,{y:276,maxSize:14,minSize:10,maxWidth:360});
+  drawCenteredFitted(page,`${category} Category`,pf,{y:251,maxSize:13,minSize:9,maxWidth:260});
+  drawCenteredFitted(page,date,pf,{y:226,maxSize:13,minSize:9,maxWidth:260});
+
+  // The QR intentionally contains all requested verification information.
+  // Use low error correction to maximize capacity while keeping the QR readable.
+  const qrText=[
+    `Name: ${name}`,
+    `School/Institution: ${school}`,
+    `Country: ${country}`,
+    `Category: ${category}`,
+    `Participant ID: ${studentId}`,
+    `Year: ${participationYear}`,
+    `Verify Certificate at: https://cert.iarco.org`
+  ].join('\n');
+  const qr=await qrDataUrl(qrText);
+  const qrBytes=await fetch(qr).then(r=>r.arrayBuffer());
+  const qrImg=await pdf.embedPng(qrBytes);
+  page.drawImage(qrImg,{x:700,y:395,width:105,height:105});
+
   const CERT_METADATA={
     titlePrefix:"IARCO Assessment Certificate",
     author:"IARCO",
@@ -359,20 +411,16 @@ async function generateCertificatePdf(score,total,percentile,timeTaken,duration)
     producedDate:"2026-08-20T00:00:00+06:00"
   };
   const producedAt=new Date(CERT_METADATA.producedDate);
-  const metadata={
-    title:`${CERT_METADATA.titlePrefix} - ${name}`,
-    author:CERT_METADATA.author,
-    subject:CERT_METADATA.subject,
-    keywords:[studentId,String(user?.program||""),String(user?.batch||""),String(user?.role||user?.category||""),year].filter(Boolean),
-    creator:CERT_METADATA.creator,
-    producer:CERT_METADATA.producer,
-    creationDate:producedAt,
-    modificationDate:producedAt
-  };
-  pdf.setTitle(metadata.title);pdf.setAuthor(metadata.author);pdf.setSubject(metadata.subject);pdf.setKeywords(metadata.keywords);pdf.setCreator(metadata.creator);pdf.setProducer(metadata.producer);pdf.setCreationDate(metadata.creationDate);pdf.setModificationDate(metadata.modificationDate);
+  pdf.setTitle(`${CERT_METADATA.titlePrefix} - ${name}`);
+  pdf.setAuthor(CERT_METADATA.author);
+  pdf.setSubject(CERT_METADATA.subject);
+  pdf.setKeywords([studentId,String(user?.program||""),String(user?.batch||""),category,participationYear].filter(Boolean));
+  pdf.setCreator(CERT_METADATA.creator);
+  pdf.setProducer(CERT_METADATA.producer);
+  pdf.setCreationDate(producedAt);
+  pdf.setModificationDate(producedAt);
   return {base64:bytesToBase64(await pdf.save())};
 }
-
 
 function showSubmissionProgress(){
   document.querySelector('#submissionProgress')?.remove();
@@ -383,7 +431,7 @@ function showSubmissionProgress(){
     <h2 id="submitProgressTitle">Saving your assessment</h2>
     <p id="submitProgressMessage" class="muted">Please keep this page open while we securely save your answers.</p>
     <div class="submission-progress-track"><div id="submitProgressBar" class="submission-progress-fill" style="width:12%"></div></div>
-    <div class="submission-progress-steps"><span id="submitStep1" class="active">1. Save answers</span><span id="submitStep2">2. Prepare certificate</span><span id="submitStep3">3. Prepare certificate</span></div>
+    <div class="submission-progress-steps"><span id="submitStep1" class="active">1. Preparing Result</span><span id="submitStep2">2. Save Result</span><span id="submitStep3">3. Preparing Certificate</span></div>
     <p class="submission-progress-note">Do not close or refresh this page until processing is complete.</p>
   </div>`;
   document.body.appendChild(el);
@@ -404,7 +452,9 @@ async function submit(reason){
   const progress=showSubmissionProgress();
   try{
     await allowProgressPaint();
-    progress.set(1,'Saving your assessment','Your answers are being securely recorded in the assessment database.');
+    progress.set(1,'Preparing Result','Your assessment result is being prepared securely.');
+    await allowProgressPaint();
+    progress.set(2,'Save Result','Your answers and result are being securely recorded in the assessment database.');
     const clientSubmissionId=`${attemptId}-${safeEmail()}-${startedAt}`;
     const payload={attempt_id:attemptId,email:safeEmail(),answers:answers(),time_taken:timeTaken,reason,variant_id:quiz.variant_id,client_submission_id:clientSubmissionId};
     let r;
@@ -417,10 +467,10 @@ async function submit(reason){
     let emailStatus='PENDING_CERTIFICATE',certificateFile='',certificateError='';
     if(reason!=='CHEATING'){
       try{
-        progress.set(2,'Preparing your certificate','Your result is saved. We are now generating your certificate PDF.');
+        progress.set(3,'Preparing Certificate','Your result is saved. We are now preparing your certificate PDF.');
         await allowProgressPaint();
         const cert=await generateCertificatePdf(r.score,r.total_questions,r.percentile,r.time_taken,r.duration_minutes);
-        progress.set(3,'Sending your certificate','Your certificate is ready. We are securely sending it to your registered email address.');
+        progress.set(3,'Preparing Certificate','Your certificate is being prepared. It will be sent automatically to your registered email address.');
         await allowProgressPaint();
         const sent=await api('certificate_upload',{attempt_id:attemptId,email:safeEmail(),certificate_pdf_base64:cert.base64});emailStatus=sent.email_status||'FAILED';certificateFile=sent.certificate_file||'';certificateError=sent.email_error||'';
       }catch(certErr){emailStatus='FAILED';certificateError=certErr.message||'Unknown certificate error';}
