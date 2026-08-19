@@ -322,7 +322,7 @@ async function violate(reason,details=""){
 async function getAsset(year,asset){const r=await fetch(`${CERT_API}?action=certificate_asset&year=${encodeURIComponent(year)}&asset=${encodeURIComponent(asset)}`);if(!r.ok)throw Error(`Certificate asset unavailable (${asset}, HTTP ${r.status})`);return await r.arrayBuffer()}
 
 function ensureQrContainer(){let q=document.getElementById("qrcode");if(!q){q=document.createElement("div");q.id="qrcode";q.setAttribute("aria-hidden","true");q.style.cssText="position:fixed;left:-10000px;top:-10000px;width:100px;height:100px;overflow:hidden;";document.body.appendChild(q)}return q}
-function qrDataUrl(text){return new Promise((resolve,reject)=>{const q=ensureQrContainer();q.innerHTML="";try{if(typeof QRCode!=="function")throw Error("QR code library did not load");new QRCode(q,{text,width:90,height:90,correctLevel:QRCode.CorrectLevel.L});setTimeout(()=>{const c=q.querySelector("canvas"),img=q.querySelector("img");if(c)return resolve(c.toDataURL("image/png"));if(img)return resolve(img.src);reject(Error("QR generation failed"))},300)}catch(e){reject(e)}})}
+function qrDataUrl(text){return new Promise((resolve,reject)=>{const q=ensureQrContainer();q.innerHTML="";try{if(typeof QRCode!=="function")throw Error("QR code library did not load");new QRCode(q,{text,width:180,height:180,correctLevel:QRCode.CorrectLevel.L});setTimeout(()=>{const c=q.querySelector("canvas"),img=q.querySelector("img");if(c)return resolve(c.toDataURL("image/png"));if(img)return resolve(img.src);reject(Error("QR generation failed"))},300)}catch(e){reject(e)}})}
 function bytesToBase64(bytes){let binary="";const chunk=0x8000;for(let i=0;i<bytes.length;i+=chunk)binary+=String.fromCharCode(...bytes.subarray(i,Math.min(i+chunk,bytes.length)));return btoa(binary)}
 
 async function generateCertificatePdf(score,total,percentile,timeTaken,duration){
@@ -351,7 +351,16 @@ async function generateCertificatePdf(score,total,percentile,timeTaken,duration)
   const batch=String(user?.batch||"");
   const years=String(user?.years||year);
   const category=String(user?.category||user?.role||"");
-  const date=String(user?.date||"");
+  const rawDate=String(user?.date||"");
+  const date=(()=>{
+    const m=rawDate.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if(m){
+      const d=new Date(Date.UTC(Number(m[1]),Number(m[2])-1,Number(m[3])));
+      return new Intl.DateTimeFormat("en-US",{month:"long",day:"numeric",year:"numeric",timeZone:"UTC"}).format(d);
+    }
+    const parsed=new Date(rawDate);
+    return Number.isNaN(parsed.getTime())?rawDate:new Intl.DateTimeFormat("en-US",{month:"long",day:"numeric",year:"numeric",timeZone:"UTC"}).format(parsed);
+  })();
 
   let GreatVibes=null,PtSans=null;
   if(window.fontkit){
@@ -452,8 +461,10 @@ async function generateCertificatePdf(score,total,percentile,timeTaken,duration)
   const certIdText=`Certificate ID: ${studentId}`;
   drawCentered(certIdText,bold,8,488.07,723.8);
 
-  // Participant name
-  drawCentered(name,bold,27,357.19,423.0);
+  // Participant name — use the provided calligraphy font and make it
+  // intentionally larger than the supporting certificate text.
+  if(GreatVibes) drawCentered(name,GreatVibes,42,352.5,423.0);
+  else drawCentered(name,bold,30,357.19,423.0);
 
   // School / institution
   drawCentered(school,bold,16,302.45,423.05);
@@ -484,13 +495,27 @@ async function generateCertificatePdf(score,total,percentile,timeTaken,duration)
   x2+=normal.widthOfTextAtSize(line2a,line2Size);
   page.drawText(line2b,{x:x2,y:253.04,size:line2Size,font:bold});
 
-  // Replace the two score placeholders without disturbing the rest of
-  // the template paragraph.
-  const scoreText=`score of ${String(score??"")} out of ${String(total??"")} on the Research 101`;
-  drawCentered(scoreText,bold,9,200.93,605.63);
+  // Replace ONLY the two score placeholders in the template paragraph.
+  // Keeping the surrounding template text untouched prevents the score
+  // from shifting the following sentence/words.
+  page.drawRectangle({x:556.5,y:196.0,width:9.0,height:14.0,color:white});
+  page.drawRectangle({x:591.5,y:196.0,width:10.0,height:14.0,color:white});
+  drawCentered(String(score??""),bold,9,198.6,561.35);
+  drawCentered(String(total??""),bold,9,198.6,596.55);
 
-  // QR code stays inside the exact QR placeholder area.
-  const qr=await qrDataUrl(`IARCO|ID:${studentId}`);
+  // QR code contains the complete certificate verification information.
+  const qrText=[
+    "IARCO Certificate",
+    `Participant ID: ${studentId}`,
+    `Name: ${name}`,
+    `School/Institution: ${school}`,
+    `Country: ${String(user?.country||"")}`,
+    `Category: ${category}`,
+    `Program: ${String(user?.program||"")}`,
+    `Year: ${years}`,
+    "Verify Certificate at: https://cert.iarco.org"
+  ].join("\n");
+  const qr=await qrDataUrl(qrText);
   const qrBytes=await fetch(qr).then(r=>r.arrayBuffer());
   const qrImg=await pdf.embedPng(qrBytes);
   page.drawImage(qrImg,{
