@@ -438,43 +438,30 @@ async function generateCertificatePdf(score,total,percentile,timeTaken,duration)
 
   // Participation/category/date placeholders
   page.drawRectangle({
-    x:145,y:H-350,width:575,height:65,
-    color:white
+    x: 145, y: H - 350, width: 575, height: 65,
+    color: white
   });
-
-
 
   // QR placeholder
   page.drawRectangle({
-    x:675,y:H-220,width:105,height:110,
-    color:white
+    x: 675, y: H - 220, width: 105, height: 110,
+    color: white
   });
 
-  const drawCentered=(text,font,size,baseline,centerX=W/2)=>{
-    const value=String(text??"");
-    const width=font.widthOfTextAtSize(value,size);
-    page.drawText(value,{
-      x:centerX-width/2,
-      y:baseline,
+  const drawCentered = (text, font, size, baseline, centerX = W / 2) => {
+    const value = String(text ?? "");
+    const width = font.widthOfTextAtSize(value, size);
+    page.drawText(value, {
+      x: centerX - width / 2,
+      y: baseline,
       size,
       font
     });
   };
 
-  /*
-   * Exact template baselines:
-   * batch/year  -> 514.67
-   * certificate ID -> 488.07
-   * name -> 357.19
-   * school -> 302.45
-   * category -> 274.79
-   * date -> 253.04
-   * score paragraph -> exact bold span starts at PDF y=198.288056 (top-left y=384.950958)
-   */
-
   // Top-right batch/year
   drawCentered(
-    `${batch}${batch&&years?"  ":""}${years}`,
+    `${batch}${batch && years ? "  " : ""}${years}`,
     bold,
     15,
     514.67,
@@ -482,90 +469,65 @@ async function generateCertificatePdf(score,total,percentile,timeTaken,duration)
   );
 
   // Certificate ID
-  const certIdText=`Certificate ID: ${studentId}`;
-  drawCentered(certIdText,bold,8,488.07,723.8);
+  const certIdText = `Certificate ID: ${studentId}`;
+  drawCentered(certIdText, bold, 8, 488.07, 723.8);
 
-  // Participant name — use the provided calligraphy font and make it
-  // intentionally larger than the supporting certificate text.
-  if(GreatVibes) drawCentered(name,GreatVibes,42,352.5,423.0);
-  else drawCentered(name,bold,30,357.19,423.0);
+  // Participant name
+  if (GreatVibes) drawCentered(name, GreatVibes, 42, 352.5, 423.0);
+  else drawCentered(name, bold, 30, 357.19, 423.0);
 
   // School / institution
-  drawCentered(school,bold,16,302.45,423.05);
+  drawCentered(school, bold, 16, 302.45, 423.05);
 
-  // First participation line:
-  // "has successfully participated in the [category] Category"
-  const line1a="has successfully participated in the ";
-  const line1b=`${category} Category`;
-  const line1Size=16;
-  const line1Width=
-    normal.widthOfTextAtSize(line1a,line1Size)+
-    bold.widthOfTextAtSize(line1b,line1Size);
-  let x1=(W-line1Width)/2;
-  page.drawText(line1a,{x:x1,y:274.79,size:line1Size,font:normal});
-  x1+=normal.widthOfTextAtSize(line1a,line1Size);
-  page.drawText(line1b,{x:x1,y:274.79,size:line1Size,font:bold});
+  // First participation line
+  const line1a = "has successfully participated in the ";
+  const line1b = `${category} Category`;
+  const line1Size = 16;
+  const line1Width =
+    normal.widthOfTextAtSize(line1a, line1Size) +
+    bold.widthOfTextAtSize(line1b, line1Size);
+  let x1 = (W - line1Width) / 2;
+  page.drawText(line1a, { x: x1, y: 274.79, size: line1Size, font: normal });
+  x1 += normal.widthOfTextAtSize(line1a, line1Size);
+  page.drawText(line1b, { x: x1, y: 274.79, size: line1Size, font: bold });
 
-  // Second participation line:
-  // "of International Academic Research Competition on [date]"
-  const line2a="of International Academic Research Competition on ";
-  const line2b=date;
-  const line2Size=16;
-  const line2Width=
-    normal.widthOfTextAtSize(line2a,line2Size)+
-    bold.widthOfTextAtSize(line2b,line2Size);
-  let x2=(W-line2Width)/2;
-  page.drawText(line2a,{x:x2,y:253.04,size:line2Size,font:normal});
-  x2+=normal.widthOfTextAtSize(line2a,line2Size);
-  page.drawText(line2b,{x:x2,y:253.04,size:line2Size,font:bold});
+  // Second participation line
+  const line2a = "of International Academic Research Competition on ";
+  const line2b = date;
+  const line2Size = 16;
+  const line2Width =
+    normal.widthOfTextAtSize(line2a, line2Size) +
+    bold.widthOfTextAtSize(line2b, line2Size);
+  let x2 = (W - line2Width) / 2;
+  page.drawText(line2a, { x: x2, y: 253.04, size: line2Size, font: normal });
+  x2 += normal.widthOfTextAtSize(line2a, line2Size);
+  page.drawText(line2b, { x: x2, y: 253.04, size: line2Size, font: bold });
 
   /*
-   * EXACT SCORE LINE FROM THE 2026 TEMPLATE
-   *
-   * The source PDF has one bold span beginning at x=521.473388... and
-   * ending at x=689.791870..., baseline/top-left y=384.950958... and
-   * bottom y=397.211944.... PDF-lib uses a bottom-left origin, therefore
-   * the baseline is H - 397.211944 = 198.288055.
-   *
-   * Instead of moving only the two x glyphs, replace the COMPLETE bold
-   * phrase. This keeps "score of ... out of ... on the Research 101"
-   * together in exactly the same sentence position and prevents the
-   * following text from being displaced when the score has two digits.
+   * SCORE LINE FIXED
    */
+  const SCORE_X = 510;
+  const SCORE_Y = 210; // পজিশন আরও উপরে নিতে এটি বাড়িয়ে ২৫০ বা ৩০০ করুন
+  const SCORE_W = 689.791870 - 521.473388;
+  const SCORE_SIZE = 9.003392;
 
-const SCORE_X=510;
-const SCORE_Y=210;
-const SCORE_W=689.791870-521.473388;
-const SCORE_H=12.261;
-const SCORE_SIZE=9.003392;
+  const scorePhrase =
+    `score of ${String(score ?? "")} out of ${String(total ?? "")} on the Research 101`;
 
-const scorePhrase=
-  `score of ${String(score??"")} out of ${String(total??"")} on the Research 101`;
+  let scoreSize = SCORE_SIZE;
+  const measured = bold.widthOfTextAtSize(scorePhrase, scoreSize);
 
+  if (measured > SCORE_W) {
+    scoreSize = Math.max(7.5, (scoreSize * SCORE_W) / measured);
+  }
 
-// Fit phrase into original width.
-let scoreSize=SCORE_SIZE;
-
-const measured=
-  bold.widthOfTextAtSize(
-    scorePhrase,
-    scoreSize
-  );
-
-if(measured>SCORE_W){
-  scoreSize=
-    Math.max(
-      7.5,
-      scoreSize*SCORE_W/measured
-    );
-}
-
-page.drawText(scorePhrase,{
-  x:SCORE_X,
-  y:SCORE_Y,
-  size:scoreSize,
-  font:bold
-});
+  // সরাসরি ড্র করা হচ্ছে (কোনো সাদা রেকট্যাঙ্গেল ছাড়া)
+  page.drawText(scorePhrase, {
+    x: SCORE_X,
+    y: SCORE_Y,
+    size: scoreSize,
+    font: bold
+  });
 
   // QR code contains the complete certificate verification information.
   const qrText=[
