@@ -506,7 +506,7 @@ async function generateCertificatePdf(score,total,percentile,timeTaken,duration)
   /*
    * SCORE LINE FIXED
    */
-  const SCORE_X = 510;
+  const SCORE_X = 520;
   const SCORE_Y = 210; // পজিশন আরও উপরে নিতে এটি বাড়িয়ে ২৫০ বা ৩০০ করুন
   const SCORE_W = 689.791870 - 521.473388;
   const SCORE_SIZE = 9.003392;
