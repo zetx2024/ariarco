@@ -532,8 +532,7 @@ async function generateCertificatePdf(score,total,percentile,timeTaken,duration)
    * together in exactly the same sentence position and prevents the
    * following text from being displaced when the score has two digits.
    */
-  const x = 513.63;
-const y = 202.50;
+
   const SCORE_X=513.63;
   const SCORE_Y=202.50;
   const SCORE_W=689.791870-521.473388;
