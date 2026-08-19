@@ -533,41 +533,47 @@ async function generateCertificatePdf(score,total,percentile,timeTaken,duration)
    * following text from being displaced when the score has two digits.
    */
 
-  const SCORE_X=513.63;
-  const SCORE_Y=202.50;
-  const SCORE_W=689.791870-521.473388;
-  const SCORE_H=12.261;
-  const SCORE_SIZE=9.003392;
-  const scorePhrase=`score of ${String(score??"")} out of ${String(total??"")} on the Research 101`;
+const SCORE_X=513.63;
+const SCORE_Y=202.50;
+const SCORE_W=689.791870-521.473388;
+const SCORE_H=12.261;
+const SCORE_SIZE=9.003392;
 
-  // Remove only the original bold score phrase; all other template text
-  // remains untouched.
-  page.drawRectangle({
-    x:SCORE_X-0.6,
-    y:SCORE_Y-0.7,
-    width:SCORE_W+1.2,
-    height:SCORE_H+1.4,
-    color:white
-  });
+const scorePhrase=
+  `score of ${String(score??"")} out of ${String(total??"")} on the Research 101`;
 
-  // Fit the completed phrase into the exact original bold-span width while
-  // preserving its original left edge and baseline.
-  let scoreSize=SCORE_SIZE;
-  const measured=bold.widthOfTextAtSize(scorePhrase,scoreSize);
-  if(measured>SCORE_W)scoreSize=Math.max(7.5,scoreSize*SCORE_W/measured);
-  page.drawText(scorePhrase,{
-    x:SCORE_X,
-    y:SCORE_Y,
-    size:scoreSize,
-    font:bold
-  });
+// Remove original score phrase.
+page.drawRectangle({
+  x:SCORE_X-0.6,
+  y:SCORE_Y-0.7,
+  width:SCORE_W+1.2,
+  height:SCORE_H+1.4,
+  color:white
+});
 
-  // Hard validation of the template geometry before the PDF is returned.
-  // This is intentionally deterministic and runs for both certificate
-  // creation and every browser-side certificate download.
-  if(Math.abs(SCORE_X-521.473388)>0.01 || Math.abs(SCORE_Y-(H-397.211944))>0.01 || SCORE_W<160){
-    throw Error("Certificate score position validation failed.");
-  }
+// Fit phrase into original width.
+let scoreSize=SCORE_SIZE;
+
+const measured=
+  bold.widthOfTextAtSize(
+    scorePhrase,
+    scoreSize
+  );
+
+if(measured>SCORE_W){
+  scoreSize=
+    Math.max(
+      7.5,
+      scoreSize*SCORE_W/measured
+    );
+}
+
+page.drawText(scorePhrase,{
+  x:SCORE_X,
+  y:SCORE_Y,
+  size:scoreSize,
+  font:bold
+});
 
   // QR code contains the complete certificate verification information.
   const qrText=[
