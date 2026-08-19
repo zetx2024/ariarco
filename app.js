@@ -103,7 +103,7 @@ function login(){
     <div class="brand-mark">I</div><div class="eyebrow">SECURE ASSESSMENT PORTAL</div>
     <h1>IARCO Assessment</h1><p class="muted">Authorized participants only. Sign in to continue.</p>
     <div class="form-group"><label for="email">Email address</label><input id="email" class="field" type="email" autocomplete="username" placeholder="you@example.com"></div>
-    <div class="form-group"><label for="password">Password</label><div class="password-wrap"><input id="password" class="field" type="password" autocomplete="current-password" placeholder="Enter your password"><button type="button" id="togglePassword" class="password-toggle" aria-label="Show password" title="Show password">Show</button></div></div>
+    <div class="form-group"><label for="password">Password</label><div class="password-wrap"><input id="password" class="field" type="password" autocomplete="current-password" placeholder="Enter your password"><button type="button" id="togglePassword" class="password-toggle" aria-label="Show password" title="Show password">👁</button></div></div>
     <button id="login" class="btn gold full">Sign in securely</button><div id="msg" class="form-message"></div>
   </section></main>`);
   protect();
@@ -506,10 +506,10 @@ async function generateCertificatePdf(score,total,percentile,timeTaken,duration)
   /*
    * SCORE LINE FIXED
    */
-  const SCORE_X = 520;
-  const SCORE_Y = 210; // পজিশন আরও উপরে নিতে এটি বাড়িয়ে ২৫০ বা ৩০০ করুন
+  const SCORE_X = 518;
+  const SCORE_Y = 219.5; 
   const SCORE_W = 689.791870 - 521.473388;
-  const SCORE_SIZE = 9.003392;
+  const SCORE_SIZE = 9.5;
 
   const scorePhrase =
     `score of ${String(score ?? "")} out of ${String(total ?? "")} on the Research 101`;
@@ -521,7 +521,7 @@ async function generateCertificatePdf(score,total,percentile,timeTaken,duration)
     scoreSize = Math.max(7.5, (scoreSize * SCORE_W) / measured);
   }
 
-  // সরাসরি ড্র করা হচ্ছে (কোনো সাদা রেকট্যাঙ্গেল ছাড়া)
+  
   page.drawText(scorePhrase, {
     x: SCORE_X,
     y: SCORE_Y,
@@ -531,7 +531,7 @@ async function generateCertificatePdf(score,total,percentile,timeTaken,duration)
 
   // QR code contains the complete certificate verification information.
   const qrText=[
-    "IARCO Certificate",
+    "IARCO Participation Certificate",
     `Participant ID: ${studentId}`,
     `Name: ${name}`,
     `School/Institution: ${school}`,
@@ -552,9 +552,9 @@ async function generateCertificatePdf(score,total,percentile,timeTaken,duration)
   });
 
   const CERT_METADATA={
-    titlePrefix:"IARCO Assessment Certificate",
+    titlePrefix:"IARCO Participation Certificate",
     author:"Sanaul Haque",
-    subject:"IARCO Assessment Certificate",
+    subject:"IARCO Participation Certificate",
     creator:"IARCO Secure Assessment Portal",
     producer:"Sanaul Haque IARCO Host",
     producedDate:"2026-09-20T00:00:00+06:00"
@@ -599,7 +599,7 @@ function showSubmissionProgress(){
     <h2 id="submitProgressTitle">Saving your assessment</h2>
     <p id="submitProgressMessage" class="muted">Please keep this page open while we securely save your answers.</p>
     <div class="submission-progress-track"><div id="submitProgressBar" class="submission-progress-fill" style="width:12%"></div></div>
-    <div class="submission-progress-steps"><span id="submitStep1" class="active">1. Save answers</span><span id="submitStep2">2. Prepare certificate</span><span id="submitStep3">3. Prepare certificate</span></div>
+    <div class="submission-progress-steps"><span id="submitStep1" class="active">1. Save answers</span><span id="submitStep2">2. Prepare result</span><span id="submitStep3">3. Prepare certificate</span></div>
     <p class="submission-progress-note">Do not close or refresh this page until processing is complete.</p>
   </div>`;
   document.body.appendChild(el);
