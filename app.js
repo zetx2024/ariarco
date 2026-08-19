@@ -533,8 +533,8 @@ async function generateCertificatePdf(score,total,percentile,timeTaken,duration)
    * following text from being displaced when the score has two digits.
    */
 
-const SCORE_X=513.63;
-const SCORE_Y=202.50;
+const SCORE_X=512;
+const SCORE_Y=204;
 const SCORE_W=689.791870-521.473388;
 const SCORE_H=12.261;
 const SCORE_SIZE=9.003392;
@@ -542,14 +542,6 @@ const SCORE_SIZE=9.003392;
 const scorePhrase=
   `score of ${String(score??"")} out of ${String(total??"")} on the Research 101`;
 
-// Remove original score phrase.
-page.drawRectangle({
-  x:SCORE_X-0.6,
-  y:SCORE_Y-0.7,
-  width:SCORE_W+1.2,
-  height:SCORE_H+1.4,
-  color:white
-});
 
 // Fit phrase into original width.
 let scoreSize=SCORE_SIZE;
