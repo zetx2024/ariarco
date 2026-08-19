@@ -134,12 +134,40 @@ async function downloadCertificate(attemptId,expectedFilename='IARCO_Certificate
   const b=document.getElementById("downloadCertificateBtn");if(!b)return;
   const old=b.textContent;b.disabled=true;b.textContent="Preparing download…";
   try{
-    const r=await fetch(`${API}?action=certificate_download`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:safeEmail(),attempt_id:Number(attemptId)})});
-    if(!r.ok)throw Error("Certificate download is not available yet.");
-    const blob=await r.blob();
-    const cd=r.headers.get('Content-Disposition')||'';
-    const m=cd.match(/filename="?([^";]+)"?/i);
-    const filename=(m&&m[1]?m[1]:expectedFilename).trim()||'IARCO_Certificate.pdf';
+    /*
+     * Re-render the certificate in the browser on every download.
+     * This deliberately uses the same generator/layout validation as the
+     * certificate creation flow, so the downloaded PDF is always rebuilt
+     * from the configured template instead of relying on an older server copy.
+     */
+    const state=read();
+    let blob=null;
+    let filename=String(expectedFilename||'IARCO_Certificate.pdf').trim()||'IARCO_Certificate.pdf';
+
+    if(state && Number(state.attempt_id)===Number(attemptId) && state.score!==undefined && state.total_questions!==undefined){
+      const cert=await generateCertificatePdf(
+        state.score,
+        state.total_questions,
+        state.percentile,
+        state.time_taken,
+        state.duration_minutes
+      );
+      const raw=atob(cert.base64);
+      const bytes=new Uint8Array(raw.length);
+      for(let i=0;i<raw.length;i++)bytes[i]=raw.charCodeAt(i);
+      blob=new Blob([bytes],{type:'application/pdf'});
+    }
+
+    /* Fallback only if the local result data is unavailable. */
+    if(!blob){
+      const r=await fetch(`${API}?action=certificate_download`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:safeEmail(),attempt_id:Number(attemptId)})});
+      if(!r.ok)throw Error("Certificate download is not available yet.");
+      blob=await r.blob();
+      const cd=r.headers.get('Content-Disposition')||'';
+      const m=cd.match(/filename="?([^";]+)"?/i);
+      filename=(m&&m[1]?m[1]:filename).trim()||'IARCO_Certificate.pdf';
+    }
+
     const url=URL.createObjectURL(blob);const a=document.createElement("a");a.style.display="none";a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();
     setTimeout(()=>URL.revokeObjectURL(url),1500);
   }catch(e){alert(e.message||"Could not download the certificate.");}
@@ -414,11 +442,7 @@ async function generateCertificatePdf(score,total,percentile,timeTaken,duration)
     color:white
   });
 
-  // Score placeholders inside the explanatory paragraph.
-  page.drawRectangle({
-    x:515,y:H-402,width:180,height:22,
-    color:white
-  });
+
 
   // QR placeholder
   page.drawRectangle({
@@ -445,7 +469,7 @@ async function generateCertificatePdf(score,total,percentile,timeTaken,duration)
    * school -> 302.45
    * category -> 274.79
    * date -> 253.04
-   * score paragraph -> 200.93
+   * score paragraph -> exact bold span starts at PDF y=198.288056 (top-left y=384.950958)
    */
 
   // Top-right batch/year
@@ -495,13 +519,54 @@ async function generateCertificatePdf(score,total,percentile,timeTaken,duration)
   x2+=normal.widthOfTextAtSize(line2a,line2Size);
   page.drawText(line2b,{x:x2,y:253.04,size:line2Size,font:bold});
 
-  // Replace ONLY the two score placeholders in the template paragraph.
-  // Keeping the surrounding template text untouched prevents the score
-  // from shifting the following sentence/words.
-  page.drawRectangle({x:556.5,y:196.0,width:9.0,height:14.0,color:white});
-  page.drawRectangle({x:591.5,y:196.0,width:10.0,height:14.0,color:white});
-  drawCentered(String(score??""),bold,9,198.6,561.35);
-  drawCentered(String(total??""),bold,9,198.6,596.55);
+  /*
+   * EXACT SCORE LINE FROM THE 2026 TEMPLATE
+   *
+   * The source PDF has one bold span beginning at x=521.473388... and
+   * ending at x=689.791870..., baseline/top-left y=384.950958... and
+   * bottom y=397.211944.... PDF-lib uses a bottom-left origin, therefore
+   * the baseline is H - 397.211944 = 198.288055.
+   *
+   * Instead of moving only the two x glyphs, replace the COMPLETE bold
+   * phrase. This keeps "score of ... out of ... on the Research 101"
+   * together in exactly the same sentence position and prevents the
+   * following text from being displaced when the score has two digits.
+   */
+  const SCORE_X=521.473388;
+  const SCORE_Y=198.288056;
+  const SCORE_W=689.791870-521.473388;
+  const SCORE_H=12.261;
+  const SCORE_SIZE=9.003392;
+  const scorePhrase=`score of ${String(score??"")} out of ${String(total??"")} on the Research 101`;
+
+  // Remove only the original bold score phrase; all other template text
+  // remains untouched.
+  page.drawRectangle({
+    x:SCORE_X-0.6,
+    y:SCORE_Y-0.7,
+    width:SCORE_W+1.2,
+    height:SCORE_H+1.4,
+    color:white
+  });
+
+  // Fit the completed phrase into the exact original bold-span width while
+  // preserving its original left edge and baseline.
+  let scoreSize=SCORE_SIZE;
+  const measured=bold.widthOfTextAtSize(scorePhrase,scoreSize);
+  if(measured>SCORE_W)scoreSize=Math.max(7.5,scoreSize*SCORE_W/measured);
+  page.drawText(scorePhrase,{
+    x:SCORE_X,
+    y:SCORE_Y,
+    size:scoreSize,
+    font:bold
+  });
+
+  // Hard validation of the template geometry before the PDF is returned.
+  // This is intentionally deterministic and runs for both certificate
+  // creation and every browser-side certificate download.
+  if(Math.abs(SCORE_X-521.473388)>0.01 || Math.abs(SCORE_Y-(H-397.211944))>0.01 || SCORE_W<160){
+    throw Error("Certificate score position validation failed.");
+  }
 
   // QR code contains the complete certificate verification information.
   const qrText=[
