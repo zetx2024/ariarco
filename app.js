@@ -112,7 +112,7 @@ function login(){
     const msg=document.querySelector("#msg");
     try{
       msg.textContent="Checking authorization…";msg.className="form-message loading";
-      const list=await fetch("users.json",{cache:"no-store"}).then(r=>{if(!r.ok)throw Error("Could not load participant data");return r.json()});
+      const list=await fetch("https://reg.bdeo.org/users.json",{cache:"no-store"}).then(r=>{if(!r.ok)throw Error("Could not load participant data");return r.json()});
       const email=String(document.querySelector("#email")?.value??"").trim().toLowerCase();
       const password=String(document.querySelector("#password")?.value??"");
       const emailHash=await hashLoginValue(email);
