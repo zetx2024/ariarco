@@ -507,7 +507,7 @@ async function generateCertificatePdf(score,total,percentile,timeTaken,duration)
    * SCORE LINE FIXED
    */
   const SCORE_X = 518;
-  const SCORE_Y = 219.5; 
+  const SCORE_Y = 202; 
   const SCORE_W = 689.791870 - 521.473388;
   const SCORE_SIZE = 9.5;
 
