@@ -326,7 +326,7 @@ function cheatingModal(reason){
     submitting=true;clearInterval(timer);
     try{document.exitFullscreen?.().catch(()=>{});}catch(_){}
     save({status:"CHEATED",attempt_id:attemptId,reason});
-    setPage(`<main class="portal-shell"><section class="student-card"><div class="status-panel danger-panel"><strong>Assessment ended</strong><p>Your security violation was recorded automatically. Please contact the administrator if you believe this was an error.</p></div></section></main>`);
+    setPage(`<main class="portal-shell"><section class="student-card"><div class="status-panel danger-panel"><strong>Assessment ended</strong><p>Your security violation was recorded automatically.</p></div></section></main>`);
   };
   requestAnimationFrame(()=>el.querySelector("#endCheat")?.focus());
 }
