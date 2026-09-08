@@ -194,16 +194,15 @@ async function home(){
   if(s?.status==="COMPLETED"){
     c.innerHTML=`<div class="result-hero"><div class="result-icon">✓</div><div><div class="eyebrow">ASSESSMENT COMPLETED</div><h2>Thank you for participating</h2><p>Your result has been securely recorded.</p></div></div>
       <div class="stats-grid"><div class="stat"><span>Score</span><b>${esc(s.score)}/${esc(s.total_questions)}</b></div><div class="stat"><span>Time taken</span><b>${formatSeconds(s.time_taken)}</b></div><div class="stat"><span>Total duration</span><b>${esc(s.duration_minutes)} min</b></div></div>
-      <div class="certificate-status ${s.email_status==='SENT'?'good':'warn'}"><strong>Certificate delivery:</strong> ${esc(s.email_status||"PENDING")}<br><span>${esc(s.certificate_file||"Certificate processing is in progress.")}</span>${s.certificate_file?`<br><button type="button" id="downloadCertificateBtn" class="btn gold" style="margin-top:12px">Download Certificate</button>`:''}</div>
-      <p class="muted center-note">Another attempt is available only after an administrator deletes this submission.</p>`;
+      <div class="certificate-status ${s.email_status==='SENT'?'good':'warn'}"><strong>Certificate delivery:</strong> ${esc(s.email_status||"PENDING")}<br><span>${esc(s.certificate_file||"Certificate processing is in progress.")}</span>${s.certificate_file?`<br><button type="button" id="downloadCertificateBtn" class="btn gold" style="margin-top:12px">Download Certificate</button>`:''}</div>`;
   if(s?.status==="COMPLETED" && s?.certificate_file){
     const btn=document.querySelector('#downloadCertificateBtn');
     if(btn) btn.onclick=()=>downloadCertificate(s.attempt_id,s.certificate_file||'IARCO_Certificate.pdf');
   }
     }else if(s?.status==="CHEATED"){
-    c.innerHTML=`<div class="status-panel danger-panel"><strong>Attempt closed</strong><p>${esc(name)}, a quiz security violation was recorded. Please contact the administrator.</p></div>`;
+    c.innerHTML=`<div class="status-panel danger-panel"><strong>Attempt closed</strong><p>${esc(name)}, a quiz security violation was recorded.</p></div>`;
   }else if(s?.status==="STARTED"){
-    c.innerHTML=`<div class="status-panel warning-panel"><strong>Attempt already registered</strong><p>An assessment attempt is already active or was not completed. Contact the administrator if you need assistance.</p></div>`;
+    c.innerHTML=`<div class="status-panel warning-panel"><strong>Attempt already registered</strong><p>An assessment attempt is already active or was not completed.</p></div>`;
   }else{
     c.innerHTML=`<div class="assessment-intro"><div class="intro-icon">Q</div><div><h2>Ready for your assessment?</h2><p>Questions and answer options are randomized for each attempt.</p></div></div>
       <div class="info-grid"><div><span>Participant</span><b>${esc(name)}</b></div><div><span>Program</span><b>${esc(program)}</b></div><div><span>Category</span><b>${esc(user?.category||user?.role||"Participant")}</b></div><div><span>Year</span><b>${esc(user?.years||new Date().getFullYear())}</b></div></div>
@@ -230,7 +229,7 @@ function instructions(){
   el.innerHTML=`<div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="quizInstructions">
     <div class="modal-top"><div class="modal-icon">✓</div><div><div class="eyebrow">BEFORE YOU BEGIN</div><h2 id="quizInstructions">Assessment instructions</h2></div></div>
     <div class="modal-summary"><div><span>Question pool</span><strong>${total}</strong></div><div><span>Questions per variant</span><strong>${variants[0].questions.length}</strong></div><div><span>Time limit</span><strong>${esc(quiz.time_limit_minutes)} min</strong></div></div>
-    <div class="rules"><h3>Important rules</h3><ul><li>Only one attempt is permitted unless an administrator deletes the existing attempt.</li><li>Do not switch tabs, windows, or leave the assessment page.</li><li>Copying, right-clicking and common developer shortcuts are blocked.</li><li>Security/focus violations are recorded in the assessment database.</li><li>The assessment submits automatically when the countdown reaches zero.</li></ul></div>
+    <div class="rules"><h3>Important rules</h3><ul><li>Only one attempt is permitted.</li><li>Do not switch tabs, windows, or leave the assessment page.</li><li>Copying, right-clicking and common developer shortcuts are blocked.</li><li>Security/focus violations are recorded in the assessment database.</li><li>The assessment submits automatically when the countdown reaches zero.</li></ul></div>
     <div class="modal-actions"><button id="cancel" class="btn secondary">Cancel</button><button id="attempt" class="btn gold">Attempt Quiz <span>→</span></button></div>
   </div>`;
   document.body.appendChild(el);
